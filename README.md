@@ -120,3 +120,10 @@ async function perform(connection, page, batchSize) {
 }
 ```
 * note to cleanup the immediate after the operation is completed
+
+
+- step 4(checkout step-4 branch):
+The chunked parallel processing approach fundamentally changes how we handle large datasets by breaking down a large batch of records into smaller, manageable chunks that can be processed concurrently. Instead of processing records sequentially, which can lead to memory bottlenecks and slower execution times, this method leverages JavaScript's Promise.all to process multiple chunks simultaneously. The performance benefits come from three key aspects:
+- Memory efficiency through controlled chunk sizes prevents the application from consuming excessive memory when processing large datasets
+- Parallel processing of chunks maximizes CPU utilization and reduces overall processing time
+- Connection pooling optimization by maintaining a single database connection while processing multiple chunks concurrently
