@@ -168,3 +168,12 @@ as the writeToDB function is returning a promise, we are pushing it to the write
 ```javascript
     Promise.all(writePromises)
 ```
+
+### Future Improvements
+
+*** Pre-generating IDs for database insertions 
+
+it offers significant performance benefits by eliminating auto-increment operations and reducing database engine overhead, enabling faster batch processing and better parallelization. However, this optimization comes with increased code complexity and maintenance challenges, requiring careful ID management and uniqueness guarantees. The approach is particularly valuable for high-throughput scenarios where write performance is critical, but should be weighed against the additional development and maintenance overhead.
+
+
+*** 
