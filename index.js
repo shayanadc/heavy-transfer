@@ -1,8 +1,8 @@
-import mysql from 'mysql2/promise';
+import { createPool } from 'mysql2';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const pool = mysql.createPool({
+const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -11,64 +11,91 @@ const pool = mysql.createPool({
     waitForConnections: process.env.DB_WAIT_FOR_CONNECTIONS === 'true',
     connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT),
     queueLimit: parseInt(process.env.DB_QUEUE_LIMIT)
-});
+};
+
+const pool = createPool(dbConfig);
 
 function writeToDB(connection, values) {
-    return connection.query(`
-        INSERT INTO destination_table (title1, title2)
-        VALUES ?
-    `, [values]);
+    return new Promise((resolve)=>{
+
+    connection.query(`
+            INSERT INTO destination_table (title1, title2)
+            VALUES ?
+        `, [values]);
+        resolve();
+    }) 
 }
 
-function readFromDB(connection, page = 1, offset = 10000) {
-    const firstId = (page - 1) * page + 1;
-    const lastId = firstId + offset;
+function readFromDB(poolConnection) {
+    const query = `
+    SELECT 
+        COALESCE(SUBSTRING_INDEX(title, '_', 1), '') as title1,
+        COALESCE(SUBSTRING_INDEX(title, '_', -1), '') as title2
+    FROM origin_table
+    `;
 
-    return connection.query(`
-        SELECT 
-            COALESCE(SUBSTRING_INDEX(title, '_', 1), '') as title1,
-            COALESCE(SUBSTRING_INDEX(title, '_', -1), '') as title2
-        FROM origin_table
-        WHERE id >= ${firstId} and id < ${lastId}
-    `);
+    return poolConnection.query(query)
 }
-
-async function perform(connection, page, batchSize) {
-    const [rows] = await readFromDB(connection, page, batchSize);
-    
-    const chunks = [];
-    for (let i = 0; i < rows.length; i += batchSize) {
-        chunks.push(rows.slice(i, i + batchSize));
-    }
-
-    await Promise.all(chunks.map(async (chunk) => {
-        const values = chunk.map(row => [row.title1, row.title2]);
-        await writeToDB(connection, values);
-    }));
-
-    console.log(`Processed batch ${page}, total rows: ${rows.length}`);
-}
-
 async function transferData() {
     let connection;
-    const dataSize = 2000000;
     const batchSize = 10000;
-    const totalBatches = Math.ceil(dataSize / batchSize);
 
     try {
-        connection = await pool.getConnection();
+        connection = await pool.promise().getConnection();
         
-        for (let i = 0; i < totalBatches; i++) {
-            await perform(connection, i, batchSize);
-        }
+        return new Promise((resolve, reject) => {
+            let rows = [];
+            let totalRows = 0;
+            let writePromises = [];
 
+            const poolQueryStrem = readFromDB(pool)            
+            
+            poolQueryStrem.stream()
+            .on('data', (row) => {
+                    rows.push([row.title1 || '', row.title2 || '']);
+                    totalRows++;
+                    
+                    if (rows.length === batchSize) {
+                        const batchRows = [...rows];
+                        const writePromise = writeToDB(connection, batchRows)
+                            .then(() => {
+                                console.log(`Inserted batch of ${batchSize} rows`);
+                            })
+                            .catch(error => {
+                                console.error('Error writing to DB:', error);
+                                reject(error);
+                            });
+                        
+                        writePromises.push(writePromise);
+                        rows = [];
+                    }
+                })
+                .on('end', async () => {
+                    try {
+                        await Promise.all(writePromises);
+                        console.log(`Total rows processed: ${totalRows}`);
+                        
+                        connection.release();
+                        pool.end();
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    }
+                })
+                .on('error', (error) => {
+                    console.error('Error during streaming:', error);
+                    connection.release();
+                    pool.end();
+                    reject(error);
+                });
+        });
     } catch (error) {
         console.error('Error during transfer:', error);
-    } finally {
         if (connection) {
             connection.release();
         }
-        await pool.end();
+        pool.end();
+        throw error;
     }
 }
 

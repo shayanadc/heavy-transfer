@@ -131,3 +131,40 @@ The chunked parallel processing approach fundamentally changes how we handle lar
 - step 5(checkout step-5 branch):
 
 Moving the title extraction logic from JavaScript to SQL represents a significant performance optimization in data processing. Instead of fetching complete titles and then splitting them in Node.js memory, we leverage MySQL's built-in string functions (SUBSTRING_INDEX) to perform this operation at the database level. This approach is more efficient because database engines are highly optimized for such string operations, and it reduces both the network payload and JavaScript memory footprint. When dealing with millions of records, this optimization can lead to substantial performance improvements since we're eliminating the need for JavaScript-based string manipulation (split('_')) on each row and reducing the amount of data transferred between the database and application. The database engine can also potentially utilize its internal optimizations and caching mechanisms while performing these string operations, making the overall process more efficient than handling it in application code.
+
+
+- step 6(checkout step-6 branch):
+
+Using MySQL's native streaming capabilities with a pause/resume mechanism, it processes data in controlled batches (e.g., 1000 records at a time) instead of loading large chunks (e.g., 10,000 records) at once. This approach significantly reduces memory consumption and provides more stable performance, especially when processing millions of records, as it maintains a consistent memory footprint throughout the operation while ensuring efficient data processing.
+
+in order to use the streaming capabilities of MySQL, you need to use mysql package instead promise-mysql to get the streaming capabilities
+```javascript
+import { createPool } from 'mysql2';
+const pool = createPool(dbConfig);
+```
+
+in this implementation, we are getting the streamed data from the databas:
+
+```javascript
+        const poolQueryStrem = readFromDB(pool)            
+        
+        poolQueryStrem.stream()
+        .on('data', (row) => {
+                rows.push([row.title1 || '', row.title2 || '']);
+```
+and after that we are pushing the data to the database but in a different way:
+
+```javascript
+    const writePromise = writeToDB(connection, batchRows)
+        .then(() => {
+            console.log(`Inserted batch of ${batchSize} rows`);
+        })
+    
+    writePromises.push(writePromise);
+```
+
+as the writeToDB function is returning a promise, we are pushing it to the writePromises array, and after that we are waiting for all the promises to be resolved using Promise.all
+
+```javascript
+    Promise.all(writePromises)
+```
