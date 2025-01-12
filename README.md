@@ -46,6 +46,10 @@ Run the insert.sql file to load 2 million rows on your database
 - No handling of malformed title strings
 - Missing transaction management for rollback scenarios
 
+## Issue
+- step 0(checkout step-0 branch):
+
+in this stage of the programn we are facing the issue of memory overload due to the large dataset size.
 
 ### Solutions 
 
@@ -176,4 +180,8 @@ as the writeToDB function is returning a promise, we are pushing it to the write
 it offers significant performance benefits by eliminating auto-increment operations and reducing database engine overhead, enabling faster batch processing and better parallelization. However, this optimization comes with increased code complexity and maintenance challenges, requiring careful ID management and uniqueness guarantees. The approach is particularly valuable for high-throughput scenarios where write performance is critical, but should be weighed against the additional development and maintenance overhead.
 
 
-*** 
+*** Recovering Partially Failed Inserts Without Duplication
+
+When a data transfer operation partially fails, it's important to recover only the affected records without causing duplication.
+Ensure that the destination table has unique constraints (like primary keys) on the columns being inserted. Have a mechanism to detect and recover from partial failures. This can be achieved by using a database transaction with rollback capabilities for insertion operations or generating the ids and storing them in a separate storage. We can periodically check the databse for missing ids and insert them into the database.
+
