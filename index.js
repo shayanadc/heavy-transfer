@@ -39,7 +39,6 @@ function rowNormalization(rows) {
     });
 }
 async function perform(connection, page, batchSize) {
-    async function perform(connection, page, batchSize) {
         return new Promise((resolve, reject) => {
             const immediate = setImmediate(async () => {
                 try {
@@ -56,7 +55,6 @@ async function perform(connection, page, batchSize) {
             });
         });
     }
-}
 
 async function transferData() {
     let connection;
