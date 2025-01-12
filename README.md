@@ -74,3 +74,21 @@ for (let i = 0; i < totalBatches; i++) {
     // Process chunk
 }
 ```
+
+- step 2(checkout step-2 branch):
+
+```sql
+// Optimized Query (Using ID-based pagination)
+// SELECT * FROM table LIMIT 10000, 1000
+// When executing this query, MySQL must:
+// Scan through the first 10,000 rows
+// Discard them
+// Then return the next 1,000 rows
+
+SELECT title FROM origin_table WHERE id >= ? AND id <= ?
+```
+* Async Operations
+* Non-blocking database operations
+```javascript
+   await perform(connection, i, batchSize);
+```

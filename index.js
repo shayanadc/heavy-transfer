@@ -13,25 +13,36 @@ const pool = mysql.createPool({
     queueLimit: parseInt(process.env.DB_QUEUE_LIMIT)
 });
 
-async function writeToDB(connection, values) {
-    await connection.query(`
+function writeToDB(connection, values) {
+    connection.query(`
         INSERT INTO destination_table (title1, title2)
         VALUES ?
     `, [values]);
 }
 
-async function readFromDB(connection, offset, limit) {
-    return connection.query(
-        'SELECT title FROM origin_table LIMIT ?, ?',
-        [offset, limit]
-    );
+function readFromDB(connection, page = 1, offset = 10000) {
+    const firstId = (page - 1) * page + 1;
+    const lastId = firstId + offset;
+
+    return connection.query(`
+        SELECT title
+        FROM origin_table
+        WHERE id >= ${firstId} and id < ${lastId}
+    `);
 }
 
 function rowNormalization(rows) {
     return rows.map((row) => {
         const [title1, title2] = row.title.split('_');
+
         return [title1 || '', title2 || ''];
     });
+}
+async function perform(connection, page, batchSize) {
+    const [rows] = await readFromDB(connection, page, batchSize);
+    const values = rowNormalization(rows);
+    writeToDB(connection, values);
+    console.log(`Processed batch ${page}, rows: ${rows.length}`);
 }
 
 async function transferData() {
@@ -44,10 +55,7 @@ async function transferData() {
         connection = await pool.getConnection();
         
         for (let i = 0; i < totalBatches; i++) {
-            const [rows] = await readFromDB(connection, i * batchSize, batchSize);
-            const values = rowNormalization(rows);
-            await writeToDB(connection, values);
-            console.log(`Processed batch ${i + 1}/${totalBatches}`);
+            await perform(connection, i, batchSize);
         }
 
     } catch (error) {
