@@ -92,3 +92,14 @@ SELECT title FROM origin_table WHERE id >= ? AND id <= ?
 ```javascript
    await perform(connection, i, batchSize);
 ```
+
+
+- step 3(checkout step-3 branch):
+
+Event Loop Deferral
+setImmediate schedules the callback to execute in the next iteration of the event loop
+Allows other I/O operations to be processed between heavy database operations
+
+```javascript
+
+```
