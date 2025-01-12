@@ -45,3 +45,32 @@ Run the insert.sql file to load 2 million rows on your database
 - No validation of data format
 - No handling of malformed title strings
 - Missing transaction management for rollback scenarios
+
+
+### Solutions 
+
+- step 1(checkout step-1 branch):
+
+Current Problem The original code was attempting to fetch all 2 million records at once:
+javascript
+
+```javascript
+const [rows] = await connection.query('SELECT id, title FROM origin_table');
+```
+
+This approach leads to:
+- High memory usage
+- Potential application crashes
+- Slower initial response time
+- Database server strain
+- Improved Approach The new implementation uses chunked data processing:
+
+```javascript
+const batchSize = 10000;
+const totalBatches = Math.ceil(dataSize / batchSize);
+
+for (let i = 0; i < totalBatches; i++) {
+    const [rows] = await readFromDB(connection, i * batchSize, batchSize);
+    // Process chunk
+}
+```
