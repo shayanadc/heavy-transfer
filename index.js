@@ -39,15 +39,23 @@ function rowNormalization(rows) {
     });
 }
 async function perform(connection, page, batchSize) {
-    return new Promise((resolve) => {
-        setImmediate(async () => {
-                const [rows] = await readFromDB(connection, page, batchSize);
-                const values = rowNormalization(rows);
-                writeToDB(connection, values);
-                resolve()
-                console.log(`Processed batch ${page}, rows: ${rows.length}`);
-        })
-    })
+    async function perform(connection, page, batchSize) {
+        return new Promise((resolve, reject) => {
+            const immediate = setImmediate(async () => {
+                try {
+                    const [rows] = await readFromDB(connection, page, batchSize);
+                    const values = rowNormalization(rows);
+                    await writeToDB(connection, values);
+                    console.log(`Processed batch ${page}, rows: ${rows.length}`);
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                } finally {
+                    clearImmediate(immediate);
+                }
+            });
+        });
+    }
 }
 
 async function transferData() {
