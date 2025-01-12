@@ -127,3 +127,7 @@ The chunked parallel processing approach fundamentally changes how we handle lar
 - Memory efficiency through controlled chunk sizes prevents the application from consuming excessive memory when processing large datasets
 - Parallel processing of chunks maximizes CPU utilization and reduces overall processing time
 - Connection pooling optimization by maintaining a single database connection while processing multiple chunks concurrently
+
+- step 5(checkout step-5 branch):
+
+Moving the title extraction logic from JavaScript to SQL represents a significant performance optimization in data processing. Instead of fetching complete titles and then splitting them in Node.js memory, we leverage MySQL's built-in string functions (SUBSTRING_INDEX) to perform this operation at the database level. This approach is more efficient because database engines are highly optimized for such string operations, and it reduces both the network payload and JavaScript memory footprint. When dealing with millions of records, this optimization can lead to substantial performance improvements since we're eliminating the need for JavaScript-based string manipulation (split('_')) on each row and reducing the amount of data transferred between the database and application. The database engine can also potentially utilize its internal optimizations and caching mechanisms while performing these string operations, making the overall process more efficient than handling it in application code.

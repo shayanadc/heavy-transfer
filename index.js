@@ -14,7 +14,7 @@ const pool = mysql.createPool({
 });
 
 function writeToDB(connection, values) {
-    connection.query(`
+    return connection.query(`
         INSERT INTO destination_table (title1, title2)
         VALUES ?
     `, [values]);
@@ -25,19 +25,14 @@ function readFromDB(connection, page = 1, offset = 10000) {
     const lastId = firstId + offset;
 
     return connection.query(`
-        SELECT title
+        SELECT 
+            COALESCE(SUBSTRING_INDEX(title, '_', 1), '') as title1,
+            COALESCE(SUBSTRING_INDEX(title, '_', -1), '') as title2
         FROM origin_table
         WHERE id >= ${firstId} and id < ${lastId}
     `);
 }
 
-function rowNormalization(rows) {
-    return rows.map((row) => {
-        const [title1, title2] = row.title.split('_');
-
-        return [title1 || '', title2 || ''];
-    });
-}
 async function perform(connection, page, batchSize) {
     const [rows] = await readFromDB(connection, page, batchSize);
     
@@ -47,8 +42,8 @@ async function perform(connection, page, batchSize) {
     }
 
     await Promise.all(chunks.map(async (chunk) => {
-        const values = rowNormalization(chunk);
-        writeToDB(connection, values);
+        const values = chunk.map(row => [row.title1, row.title2]);
+        await writeToDB(connection, values);
     }));
 
     console.log(`Processed batch ${page}, total rows: ${rows.length}`);
